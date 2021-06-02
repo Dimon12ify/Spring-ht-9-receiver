@@ -1,17 +1,28 @@
 package com.example.task9;
 
+import lombok.Data;
+
+import javax.validation.constraints.*;
 import java.io.Serializable;
 
-@lombok.Data
+@Data
 public class Auth implements Serializable {
-    private long Id;
+    @NotBlank(message = "Name is mandatory")
     private String Name;
+
+    @NotBlank(message = "Login is mandatory")
+    private String Login;
+
+    @NotBlank(message = "Password is mandatory")
     private String Password;
+
+    @NotBlank(message = "Phone is mandatory")
+    @Pattern(regexp = "\\d*", message = "Phone must be numbers only")
     private String PhoneNumber;
 
-    public Auth(long id, String name, String password , String phoneNumber) {
-        Id = id;
+    public Auth(String name, String login , String password , String phoneNumber) {
         Name = name;
+        Login = login;
         Password = password;
         PhoneNumber = phoneNumber;
     }

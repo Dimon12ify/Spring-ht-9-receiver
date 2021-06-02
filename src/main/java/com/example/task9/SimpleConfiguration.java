@@ -1,52 +1,54 @@
 package com.example.task9;
 
-import org.springframework.amqp.core.Binding;
-import org.springframework.amqp.core.BindingBuilder;
-import org.springframework.amqp.core.Queue;
-import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.core.*;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
 import org.springframework.amqp.rabbit.listener.adapter.MessageListenerAdapter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import javax.annotation.Resource;
+import javax.validation.Valid;
+import java.time.LocalDateTime;
+
 @Configuration
 public class SimpleConfiguration {
     static final String topicExchangeName = "my-exchange";
 
-    static final String queueName = "spring-boot";
+    static final String receiverQueueName = "toReceiver";
+
+    static final String contollerQueueName = "toController";
 
     static final String key = "receiver.receive";
 
     static final String auth = "auth.receive";
 
-    @Bean
-    Queue queue() {
-        return new Queue(queueName, false);
-    }
+    @Resource
+    private RabbitTemplate rabbitTemplate;
 
     @Bean
-    TopicExchange exchange() {
-        return new TopicExchange(topicExchangeName);
+    public Declarables topicBindings() {
+        Queue topicQueue1 = new Queue(receiverQueueName, false);
+        Queue topicQueue2 = new Queue(contollerQueueName, false);
+        TopicExchange topicExchange = new TopicExchange(topicExchangeName);
+        return new Declarables(
+                topicQueue1,
+                topicQueue2,
+                topicExchange,
+                BindingBuilder
+                        .bind(topicQueue1)
+                        .to(topicExchange).with(key),
+                BindingBuilder
+                        .bind(topicQueue2)
+                        .to(topicExchange).with(auth));
     }
 
-    @Bean
-    Binding binding(Queue queue, TopicExchange exchange) {
-        return BindingBuilder.bind(queue).to(exchange).with(key);
-    }
+    @RabbitListener(queues = {receiverQueueName})
+    public void receiveMessageFromTopic1(@Valid Data data) {
+        System.out.println("Received topic 1 (" + key + ") message: " + data.getName());
+        rabbitTemplate.convertAndSend(topicExchangeName, auth, new ValidAuth(data.getId(), "VALID", LocalDateTime.now(), "Ничего нам не должен"));
 
-    @Bean
-    MessageListenerAdapter listenerAdapter(Receiver receiver) {
-        return new MessageListenerAdapter(receiver, "receiveMessage");
-    }
-
-    @Bean
-    SimpleMessageListenerContainer container(ConnectionFactory connectionFactory,
-                                             MessageListenerAdapter listenerAdapter) {
-        SimpleMessageListenerContainer container = new SimpleMessageListenerContainer();
-        container.setConnectionFactory(connectionFactory);
-        container.setQueueNames(queueName);
-        container.setMessageListener(listenerAdapter);
-        return container;
     }
 }
